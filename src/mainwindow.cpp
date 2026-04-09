@@ -29,12 +29,10 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    this->setWindowTitle(QString::fromUtf8("IP连接监测 V2.0.1"));
+    this->setWindowTitle(QString::fromUtf8("IP连接监测 V2.0.2"));
 
-    qApp->setQuitOnLastWindowClosed(false);
-
-    QDir().mkpath(CONFIG_DIR);
-    QDir().mkpath(LOG_DIR);
+    QDir().mkpath(CONFIG_DIR);      //创建配置目录
+    QDir().mkpath(LOG_DIR);         //创建日志目录
     loadConfig();
 
     timer = new QTimer(this);
@@ -43,7 +41,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     trayMenu = new QMenu(this);
     trayIcon = new QSystemTrayIcon(QApplication::style()->standardIcon(QStyle::SP_ComputerIcon), this); //系统默认图标，后期更换
-    trayIcon->setToolTip(QString::fromUtf8("IP监测程序"));
+    trayIcon->setToolTip(QString::fromUtf8("IP监测程序 - V2.0.1.1"));
     QAction* restoreAction = new QAction("Restore", this);
     QAction* quitAction = new QAction("Quit", this);
     trayMenu->addAction(restoreAction);
@@ -70,10 +68,7 @@ MainWindow::~MainWindow()
 void MainWindow::onTimeout()
 {
     QString ip = m_ip;
-    //int time = m_interval;
-
     bool ok = checkIP(ip);
-
     QString msg = ok ? "连通" : "ERR，连接失败！";
 
     addOneMsg(ip + " " + msg);
@@ -114,7 +109,7 @@ bool MainWindow::checkIP(const QString& ip)
 #endif
 }
 
-// 日志 + 显示
+//日志+显示
 void MainWindow::addOneMsg(const QString& info)
 {
     QString timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");

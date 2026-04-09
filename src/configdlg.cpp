@@ -10,12 +10,12 @@ ConfigDlg::ConfigDlg(QWidget *parent) :
     ui->setupUi(this);
 
     m_strIniPath = INI_PATH;
-    QDir().mkpath(CONFIG_DIR);
-    ui->lineEditTime->setValidator(new QIntValidator(1, 9999, this));
+    QDir().mkpath(CONFIG_DIR);  //如果不存在，创建配置目录
+    ui->lineEditTime->setValidator(new QIntValidator(1, 9999, this));   //时间间隔输入框只接受1-9999整数
 
-    this->setWindowTitle(QString::fromUtf8("配置"));
+    this->setWindowTitle(QString::fromUtf8("配置"));  //窗口标题
 
-    initDisplay();
+    initDisplay();  //初始化显示
 }
 
 ConfigDlg::~ConfigDlg()
@@ -27,7 +27,7 @@ void ConfigDlg::initDisplay()
 {
     QSettings settings(m_strIniPath,QSettings::IniFormat);
 
-    //读取配置
+    //读取IP和时间间隔配置
     QString ip = settings.value("config/IP",DEFAULT_IP).toString();
     int time = settings.value("TimerSetting/TimerInterval",DEFAULT_INTERVAL).toInt();
 

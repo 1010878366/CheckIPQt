@@ -31,7 +31,7 @@ private:
     QString m_strIniPath;  //ini文件路径
 
 signals:
-    void configChanged();   //
+    void configChanged();   //配置更改信号，用于通知主窗口配置已改变
 
 //private slots:
 

@@ -3,11 +3,7 @@
 
 
 #include <QString>
-/*
-#define CONFIG_DIR "E:/CheckIP/config/"
-#define INI_PATH   "E:/CheckIP/config/IPconfig.ini"
-#define LOG_DIR    "E:/CheckIP/log/"
-*/
+
 static const QString CONFIG_DIR = "E:/CheckIP/config/";
 static const QString INI_PATH = "E:/CheckIP/config/IPconfig.ini";
 static const QString LOG_DIR  = "E:/CheckIP/log/";
