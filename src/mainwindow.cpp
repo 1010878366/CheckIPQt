@@ -29,7 +29,7 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    this->setWindowTitle(QString::fromUtf8("IP连接监测 V2.0.2.1"));
+    this->setWindowTitle(QString::fromUtf8("IP连接监测 V2.0.2.2"));
 
     QDir().mkpath(CONFIG_DIR);      //创建配置目录
     QDir().mkpath(LOG_DIR);         //创建日志目录
@@ -41,7 +41,6 @@ MainWindow::MainWindow(QWidget *parent)
 
     trayMenu = new QMenu(this);
     trayIcon = new QSystemTrayIcon(QApplication::style()->standardIcon(QStyle::SP_ComputerIcon), this); //系统默认图标，后期更换
-    trayIcon->setToolTip(QString::fromUtf8("IP监测程序 - V2.0.1.1"));
     QAction* restoreAction = new QAction("Restore", this);
     QAction* quitAction = new QAction("Quit", this);
     trayMenu->addAction(restoreAction);
@@ -208,6 +207,9 @@ void MainWindow::on_btnConfig_clicked()
     m_pConfigDlg->show();
     m_pConfigDlg->raise();
     m_pConfigDlg->activateWindow();
+
+    // m_pConfigDlg->loadConfigFromJson();
+    // m_pConfigDlg->updateTableWidget();
 }
 
 /*

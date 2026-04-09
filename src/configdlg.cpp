@@ -2,6 +2,10 @@
 #include "ui_configdlg.h"
 
 #include <QIntValidator>
+#include <QList>
+#include <QSpinBox>
+#include <QFormLayout>
+#include <QDialogButtonBox>
 
 ConfigDlg::ConfigDlg(QWidget *parent) :
     QDialog(parent),
@@ -17,6 +21,8 @@ ConfigDlg::ConfigDlg(QWidget *parent) :
     this->setWindowTitle(QString::fromUtf8("配置"));  //窗口标题
 
     initDisplay();  //初始化显示
+    loadConfigFromJson();
+    updateTableWidget();
 }
 
 ConfigDlg::~ConfigDlg()
@@ -178,3 +184,154 @@ bool writeJsonConfig(const QString& filePath, const QJsonObject& config)
     file.close();
     return true;
 }
+
+void ConfigDlg::loadConfigFromJson()
+{
+    QFile file(m_strJsonPath);
+    if (!file.open(QIODevice::ReadOnly))
+    {
+        qWarning() << "Could not open JSON file" << m_strJsonPath;
+        return;
+    }
+    QByteArray data = file.readAll();
+    file.close();
+
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
+    if (parseError.error!= QJsonParseError::NoError)
+    {
+        qWarning() << "JSON parse error:" << parseError.errorString();
+        return;
+    }
+
+    if (doc.isArray())
+    {
+        QJsonArray array = doc.array();
+        ipConfigs.clear();
+        for (const QJsonValue& value : array)
+        {
+            if (value.isObject())
+            {
+                QJsonObject obj = value.toObject();
+                QJsonObject configObj = obj.value("config").toObject();
+                QJsonObject timerSettingObj = obj.value("TimerSetting").toObject();
+
+                QJsonObject config;
+                config.insert("IP", configObj.value("IP"));
+                config.insert("TimerInterval", timerSettingObj.value("TimerInterval"));
+
+                ipConfigs.append(config);
+
+                qDebug() << "Loaded IP:" << config.value("IP").toString();
+                qDebug() << "Loaded TimerInterval:" << config.value("TimerInterval").toInt();
+            }
+        }
+    }
+}
+
+void ConfigDlg::updateTableWidget()
+{
+    ui->tableWidget->clearContents();
+    ui->tableWidget->setRowCount(ipConfigs.size());
+    ui->tableWidget->setColumnCount(2);
+    ui->tableWidget->setHorizontalHeaderLabels(QStringList() << "IP地址" << "时间间隔");
+
+    for (int i = 0; i < ipConfigs.size(); ++i)
+    {
+        QJsonObject config = ipConfigs.at(i);
+        QString ip = config.value("IP").toString();
+        int interval = config.value("TimerInterval").toInt();
+
+        QTableWidgetItem *ipItem = new QTableWidgetItem(ip);
+        QTableWidgetItem *intervalItem = new QTableWidgetItem(QString::number(interval));
+
+        ui->tableWidget->setItem(i, 0, ipItem);
+        ui->tableWidget->setItem(i, 1, intervalItem);
+    }
+}
+
+void ConfigDlg::saveConfigToJson()
+{
+    QJsonArray configArray;
+    for (const QJsonObject& config : ipConfigs)
+    {
+        QJsonObject newConfig;
+        QJsonObject timerSetting;
+        timerSetting.insert("TimerInterval", config.value("TimerInterval"));
+        QJsonObject ipConfig;
+        ipConfig.insert("IP", config.value("IP"));
+        newConfig.insert("TimerSetting", timerSetting);
+        newConfig.insert("config", ipConfig);
+        configArray.append(newConfig);
+    }
+
+    QJsonDocument doc(configArray);
+    QFile file(m_strJsonPath);
+    if (file.open(QIODevice::WriteOnly | QIODevice::Truncate))
+    {
+        file.write(doc.toJson());
+        file.close();
+    }
+    else
+    {
+        qWarning() << "Could not open JSON file for writing" << m_strJsonPath;
+    }
+}
+
+QJsonObject ConfigDlg::getNewConfigFromDialog()
+{
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("添加IP配置"));
+
+    QFormLayout layout(&dialog);
+    QLineEdit ipEdit;
+    QSpinBox intervalSpinBox;
+    intervalSpinBox.setRange(1, 9999);
+    intervalSpinBox.setValue(1);
+
+    layout.addRow(tr("IP地址:"), &ipEdit);
+    layout.addRow(tr("时间间隔:"), &intervalSpinBox);
+
+    QDialogButtonBox buttonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    layout.addWidget(&buttonBox);
+
+    QObject::connect(&buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    QObject::connect(&buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+    if (dialog.exec() != QDialog::Accepted)
+        return QJsonObject();
+
+    QJsonObject newConfig;
+    newConfig.insert("IP", ipEdit.text());
+    newConfig.insert("TimerInterval", intervalSpinBox.value());
+    return newConfig;
+}
+
+void ConfigDlg::on_btn_Add_clicked()
+{
+    QJsonObject newConfig = getNewConfigFromDialog();
+    if(!newConfig.isEmpty())
+    {
+        ipConfigs.append(newConfig);
+        updateTableWidget();
+    }
+}
+
+
+void ConfigDlg::on_btn_Modify_clicked()
+{
+
+}
+
+
+void ConfigDlg::on_btn_Delete_clicked()
+{
+
+}
+
+
+void ConfigDlg::on_btn_Save_clicked()
+{
+    saveConfigToJson();
+}
+
