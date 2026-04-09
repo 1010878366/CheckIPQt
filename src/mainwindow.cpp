@@ -29,7 +29,7 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    this->setWindowTitle(QString::fromUtf8("IP连接监测 V2.0.2"));
+    this->setWindowTitle(QString::fromUtf8("IP连接监测 V2.0.2.1"));
 
     QDir().mkpath(CONFIG_DIR);      //创建配置目录
     QDir().mkpath(LOG_DIR);         //创建日志目录
@@ -210,6 +210,8 @@ void MainWindow::on_btnConfig_clicked()
     m_pConfigDlg->activateWindow();
 }
 
+/*
+ * ini方式
 void MainWindow::loadConfig()
 {
     QString iniPath = INI_PATH;
@@ -225,6 +227,37 @@ void MainWindow::loadConfig()
         nInterval = DEFAULT_INTERVAL;
     m_interval = nInterval;
 
+}
+*/
+void MainWindow::loadConfig()
+{
+    QFile file(JSON_PATH);
+    if (!file.open(QIODevice::ReadOnly))
+    {
+        qWarning() << "Could not open JSON file" << JSON_PATH;
+        return;
+    }
+    QByteArray data = file.readAll();
+    file.close();
+
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
+    if (parseError.error != QJsonParseError::NoError)
+    {
+        qWarning() << "JSON parse error:" << parseError.errorString();
+        return;
+    }
+
+    QJsonObject obj = doc.object();
+    // 读取IP
+    m_ip = obj.value("config").toObject().value("IP").toString(DEFAULT_IP).trimmed();
+    if (m_ip.isEmpty())
+        m_ip = DEFAULT_IP;
+
+    int nInterval = obj.value("TimerSetting").toObject().value("TimerInterval").toInt(DEFAULT_INTERVAL);
+    if (nInterval <= 0)
+        nInterval = DEFAULT_INTERVAL;
+    m_interval = nInterval;
 }
 
 void MainWindow::reloadConfig()

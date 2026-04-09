@@ -19,6 +19,7 @@ public:
     ~ConfigDlg();
 
     void initDisplay(); //初始化显示
+
 private slots:
     void on_btnOK_clicked();
 
@@ -28,7 +29,8 @@ private:
     Ui::ConfigDlg *ui;
 
 
-    QString m_strIniPath;  //ini文件路径
+    QString m_strIniPath;   //ini文件路径
+    QString m_strJsonPath;  //json文件路径
 
 signals:
     void configChanged();   //配置更改信号，用于通知主窗口配置已改变

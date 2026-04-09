@@ -3,9 +3,14 @@
 
 
 #include <QString>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
 
 static const QString CONFIG_DIR = "E:/CheckIP/config/";
 static const QString INI_PATH = "E:/CheckIP/config/IPconfig.ini";
+static const QString JSON_PATH = "E:/CheckIP/config/IPconfig.json";
 static const QString LOG_DIR  = "E:/CheckIP/log/";
 
 #define DEFAULT_IP          "192.168.7.11"
