@@ -29,7 +29,7 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    this->setWindowTitle(QString::fromUtf8("IP连接监测 V2.0.2.2"));
+    this->setWindowTitle(QString::fromUtf8("IP连接监测 V2.0.3.0"));
 
     QDir().mkpath(CONFIG_DIR);      //创建配置目录
     QDir().mkpath(LOG_DIR);         //创建日志目录
@@ -66,11 +66,13 @@ MainWindow::~MainWindow()
 
 void MainWindow::onTimeout()
 {
-    QString ip = m_ip;
-    bool ok = checkIP(ip);
-    QString msg = ok ? "连通" : "ERR，连接失败！";
+    // 遍历 IP 列表里的每一个IP
+    for (const QString &ip : m_ipList) {
+        bool ok = checkIP(ip);
+        QString msg = ok ? "连通" : "ERR，连接失败！";
 
-    addOneMsg(ip + " " + msg);
+        addOneMsg(ip + " " + msg);
+    }
 }
 
 bool MainWindow::checkIP(const QString& ip)
@@ -207,59 +209,35 @@ void MainWindow::on_btnConfig_clicked()
     m_pConfigDlg->show();
     m_pConfigDlg->raise();
     m_pConfigDlg->activateWindow();
-
-    // m_pConfigDlg->loadConfigFromJson();
-    // m_pConfigDlg->updateTableWidget();
 }
 
-/*
- * ini方式
-void MainWindow::loadConfig()
-{
-    QString iniPath = INI_PATH;
-    QSettings ini(iniPath,QSettings::IniFormat);
-
-    // 读取IP
-    m_ip = ini.value("config/IP",DEFAULT_IP).toString().trimmed();
-    if(m_ip.isEmpty())
-        m_ip = DEFAULT_IP;
-    bool ok = false;
-    int nInterval = ini.value("TimerSetting/TimerInterval", 3).toInt(&ok);
-    if(!ok || nInterval <= 0)
-        nInterval = DEFAULT_INTERVAL;
-    m_interval = nInterval;
-
-}
-*/
 void MainWindow::loadConfig()
 {
     QFile file(JSON_PATH);
     if (!file.open(QIODevice::ReadOnly))
-    {
-        qWarning() << "Could not open JSON file" << JSON_PATH;
         return;
-    }
-    QByteArray data = file.readAll();
+
+    QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
     file.close();
 
-    QJsonParseError parseError;
-    QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
-    if (parseError.error != QJsonParseError::NoError)
+    QJsonObject root = doc.object();
+
+    // 读取 IP 列表
+    m_ipList.clear();
+    QJsonArray ipArray = root.value("ipList").toArray();
+
+    for (auto v : ipArray)
     {
-        qWarning() << "JSON parse error:" << parseError.errorString();
-        return;
+        QString ip = v.toObject().value("IP").toString().trimmed();
+        if (!ip.isEmpty())
+            m_ipList.append(ip);
     }
 
-    QJsonObject obj = doc.object();
-    // 读取IP
-    m_ip = obj.value("config").toObject().value("IP").toString(DEFAULT_IP).trimmed();
-    if (m_ip.isEmpty())
-        m_ip = DEFAULT_IP;
+    if (m_ipList.isEmpty())
+        m_ipList << DEFAULT_IP;
 
-    int nInterval = obj.value("TimerSetting").toObject().value("TimerInterval").toInt(DEFAULT_INTERVAL);
-    if (nInterval <= 0)
-        nInterval = DEFAULT_INTERVAL;
-    m_interval = nInterval;
+    // 时间写死
+    m_interval = 1;
 }
 
 void MainWindow::reloadConfig()
@@ -272,8 +250,9 @@ void MainWindow::reloadConfig()
     onTimeout();    //立刻检测一次
 
     logWithThread("配置更新");
+    QString ipListStr = m_ipList.join(", ");
     addOneMsg(QString("配置已更新：IP=%1 间隔=%2秒")
-              .arg(m_ip)
+              .arg(ipListStr)
               .arg(m_interval));
 }
 

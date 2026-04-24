@@ -19,10 +19,13 @@ public:
     explicit ConfigDlg(QWidget *parent = nullptr);
     ~ConfigDlg();
 
-    void initDisplay(); //初始化显示
+    void initDisplay();         //初始化显示
     void saveConfigToJson();    //保存到json文件里
     void loadConfigFromJson();  //加载json配置
     void updateTableWidget();   //更新控件
+    void readTableToConfigs();  //从表格读取数据到ipConfigs
+    void syncTableToData();     //把界面(tableWidget)上的内容，同步回数据(ipConfigs)
+    void setTableEditable(bool editable);   //
 
 private slots:
     void on_btnOK_clicked();
@@ -37,6 +40,8 @@ private slots:
 
     void on_btn_Save_clicked();
 
+    void on_btn_Cancel_clicked();
+
 private:
     Ui::ConfigDlg *ui;
 
@@ -46,7 +51,8 @@ private:
 
     QString m_strIniPath;   //ini文件路径
     QString m_strJsonPath;  //json文件路径
-    QList<QJsonObject> ipConfigs; // 存储IP配置信息的列表
+    QList<QJsonObject> ipConfigs;   //存储IP配置信息的列表
+    bool m_isEditing = false;       //是否处于编辑模式
 
 signals:
     void configChanged();   //配置更改信号，用于通知主窗口配置已改变

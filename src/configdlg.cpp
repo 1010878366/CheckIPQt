@@ -4,6 +4,7 @@
 #include <QIntValidator>
 #include <QList>
 #include <QSpinBox>
+#include <QMessageBox>
 #include <QFormLayout>
 #include <QDialogButtonBox>
 
@@ -16,13 +17,16 @@ ConfigDlg::ConfigDlg(QWidget *parent) :
     m_strIniPath = INI_PATH;
     m_strJsonPath = JSON_PATH;
     QDir().mkpath(CONFIG_DIR);  //如果不存在，创建配置目录
-    ui->lineEditTime->setValidator(new QIntValidator(1, 9999, this));   //时间间隔输入框只接受1-9999整数
+    //ui->lineEditTime->setValidator(new QIntValidator(1, 9999, this));   //时间间隔输入框只接受1-9999整数
 
     this->setWindowTitle(QString::fromUtf8("配置"));  //窗口标题
 
     initDisplay();  //初始化显示
     loadConfigFromJson();
     updateTableWidget();
+    ui->tableWidget->setEditTriggers(QAbstractItemView::NoEditTriggers);    //默认不可编辑
+    m_isEditing = false;
+    setTableEditable(false);
 }
 
 ConfigDlg::~ConfigDlg()
@@ -33,99 +37,43 @@ ConfigDlg::~ConfigDlg()
 void ConfigDlg::initDisplay()
 {
     QFile file(m_strJsonPath);
-    if (!file.exists()) {
-        QJsonObject defaultConfig;
-        QJsonObject configSubObject;
-        configSubObject.insert("IP", DEFAULT_IP);
-        defaultConfig.insert("config", configSubObject);
 
-        QJsonObject timerSettingSubObject;
-        timerSettingSubObject.insert("TimerInterval", DEFAULT_INTERVAL);
-        defaultConfig.insert("TimerSetting", timerSettingSubObject);
+    if (!file.exists())
+    {
+        QJsonObject root;
 
-        QJsonDocument doc(defaultConfig);
-        if (!file.open(QIODevice::WriteOnly)) {
-            qWarning() << "Could not create JSON file" << m_strJsonPath;
+        // global
+        QJsonObject global;
+        global.insert("TimerInterval", 1);
+        root.insert("global", global);
+
+        // ipList
+        QJsonArray ipArray;
+
+        QJsonObject obj1;
+        obj1.insert("IP", DEFAULT_IP);
+        ipArray.append(obj1);
+
+        root.insert("ipList", ipArray);
+
+        QJsonDocument doc(root);
+
+        if (!file.open(QIODevice::WriteOnly))
+        {
+            qWarning() << "create json failed";
             return;
         }
+
         file.write(doc.toJson());
         file.close();
     }
-
-    if(!file.open(QIODevice::ReadOnly))
-    {
-        qWarning()<<"打开json文件失败！"<<m_strJsonPath;
-        return;
-    }
-    QByteArray data = file.readAll();
-    file.close();
-
-    QJsonParseError parseErr;
-    QJsonDocument doc = QJsonDocument::fromJson(data,&parseErr);
-    if(parseErr.error != QJsonParseError::NoError)
-    {
-        qWarning() << "JSON parse error:" << parseErr.errorString();
-        return;
-    }
-
-    QJsonObject obj = doc.object();
-
-    //读取IP和时间间隔
-    QString ip = obj.value("config").toObject().value("IP").toString(DEFAULT_IP);
-    int time = obj.value("TimerSetting").toObject().value("TimerInterval").toInt(DEFAULT_INTERVAL);
-
-    // 显示到UI
-    ui->lineEditIP->setText(ip);
-    ui->lineEditTime->setText(QString::number(time));
 }
-
-/*
- * ini方式
-void ConfigDlg::on_btnOK_clicked()
-{
-    QSettings settings(m_strIniPath, QSettings::IniFormat);
-
-    QString ip = ui->lineEditIP->text();
-    QString strTime = ui->lineEditTime->text().trimmed();
-    bool ok = false;
-    int nTime = strTime.toInt(&ok);
-    if (!ok || nTime <= 0)
-    {
-        nTime = DEFAULT_INTERVAL;
-    }
-
-    settings.setValue("config/IP", ip);
-    settings.setValue("TimerSetting/TimerInterval", nTime);
-
-    settings.sync(); // 确保写入
-
-    emit configChanged();   //通知主窗口
-
-    this->close();          //关闭窗口
-}
-*/
 
 void ConfigDlg::on_btnOK_clicked()
 {
+
     // 创建一个QJsonObject来存储配置信息
     QJsonObject configObject;
-
-    // 创建config子对象并添加IP配置
-    QJsonObject configSubObject;
-    QString ip = ui->lineEditIP->text();
-    configSubObject.insert("IP", ip);
-    configObject.insert("config", configSubObject);
-
-    // 创建TimerSetting子对象并添加时间间隔配置
-    QJsonObject timerSettingSubObject;
-    QString strTime = ui->lineEditTime->text().trimmed();
-    bool ok = false;
-    int nTime = strTime.toInt(&ok);
-    if (!ok || nTime <= 0) {
-        nTime = DEFAULT_INTERVAL;
-    }
-    timerSettingSubObject.insert("TimerInterval", nTime);
-    configObject.insert("TimerSetting", timerSettingSubObject);
 
     // 将QJsonObject转换为QJsonDocument
     QJsonDocument doc(configObject);
@@ -171,6 +119,7 @@ QJsonObject readJsonConfig(const QString& filePath)
 
     return doc.object();
 }
+
 // 将配置写入JSON文件
 bool writeJsonConfig(const QString& filePath, const QJsonObject& config)
 {
@@ -189,43 +138,24 @@ void ConfigDlg::loadConfigFromJson()
 {
     QFile file(m_strJsonPath);
     if (!file.open(QIODevice::ReadOnly))
-    {
-        qWarning() << "Could not open JSON file" << m_strJsonPath;
         return;
-    }
-    QByteArray data = file.readAll();
+
+    QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
     file.close();
 
-    QJsonParseError parseError;
-    QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
-    if (parseError.error!= QJsonParseError::NoError)
+    ipConfigs.clear();
+
+    QJsonObject root = doc.object();
+    QJsonArray ipArray = root.value("ipList").toArray();
+
+    for (auto v : ipArray)
     {
-        qWarning() << "JSON parse error:" << parseError.errorString();
-        return;
-    }
+        QJsonObject obj = v.toObject();
 
-    if (doc.isArray())
-    {
-        QJsonArray array = doc.array();
-        ipConfigs.clear();
-        for (const QJsonValue& value : array)
-        {
-            if (value.isObject())
-            {
-                QJsonObject obj = value.toObject();
-                QJsonObject configObj = obj.value("config").toObject();
-                QJsonObject timerSettingObj = obj.value("TimerSetting").toObject();
+        QJsonObject config;
+        config.insert("IP", obj.value("IP").toString());
 
-                QJsonObject config;
-                config.insert("IP", configObj.value("IP"));
-                config.insert("TimerInterval", timerSettingObj.value("TimerInterval"));
-
-                ipConfigs.append(config);
-
-                qDebug() << "Loaded IP:" << config.value("IP").toString();
-                qDebug() << "Loaded TimerInterval:" << config.value("TimerInterval").toInt();
-            }
-        }
+        ipConfigs.append(config);
     }
 }
 
@@ -233,105 +163,227 @@ void ConfigDlg::updateTableWidget()
 {
     ui->tableWidget->clearContents();
     ui->tableWidget->setRowCount(ipConfigs.size());
-    ui->tableWidget->setColumnCount(2);
-    ui->tableWidget->setHorizontalHeaderLabels(QStringList() << "IP地址" << "时间间隔");
+    ui->tableWidget->setColumnCount(1);
+    ui->tableWidget->setHorizontalHeaderLabels(QStringList() << "IP地址");
 
     for (int i = 0; i < ipConfigs.size(); ++i)
     {
-        QJsonObject config = ipConfigs.at(i);
-        QString ip = config.value("IP").toString();
-        int interval = config.value("TimerInterval").toInt();
+        QString ip = ipConfigs.at(i).value("IP").toString();
 
-        QTableWidgetItem *ipItem = new QTableWidgetItem(ip);
-        QTableWidgetItem *intervalItem = new QTableWidgetItem(QString::number(interval));
-
-        ui->tableWidget->setItem(i, 0, ipItem);
-        ui->tableWidget->setItem(i, 1, intervalItem);
+        ui->tableWidget->setItem(i, 0, new QTableWidgetItem(ip));
     }
 }
 
 void ConfigDlg::saveConfigToJson()
 {
-    QJsonArray configArray;
+    QJsonObject root;
+
+    // global
+    QJsonObject global;
+    global.insert("TimerInterval", 1);  //先写死，后面再改
+    root.insert("global", global);
+
+    // ipList
+    QJsonArray ipArray;
+
     for (const QJsonObject& config : ipConfigs)
     {
-        QJsonObject newConfig;
-        QJsonObject timerSetting;
-        timerSetting.insert("TimerInterval", config.value("TimerInterval"));
-        QJsonObject ipConfig;
-        ipConfig.insert("IP", config.value("IP"));
-        newConfig.insert("TimerSetting", timerSetting);
-        newConfig.insert("config", ipConfig);
-        configArray.append(newConfig);
+        QJsonObject obj;
+        obj.insert("IP", config.value("IP").toString());
+        ipArray.append(obj);
     }
 
-    QJsonDocument doc(configArray);
+    root.insert("ipList", ipArray);
+
+    QJsonDocument doc(root);
+
     QFile file(m_strJsonPath);
     if (file.open(QIODevice::WriteOnly | QIODevice::Truncate))
     {
         file.write(doc.toJson());
         file.close();
     }
-    else
-    {
-        qWarning() << "Could not open JSON file for writing" << m_strJsonPath;
-    }
 }
 
 QJsonObject ConfigDlg::getNewConfigFromDialog()
 {
     QDialog dialog(this);
-    dialog.setWindowTitle(tr("添加IP配置"));
+    dialog.setWindowTitle("添加IP");
 
     QFormLayout layout(&dialog);
-    QLineEdit ipEdit;
-    QSpinBox intervalSpinBox;
-    intervalSpinBox.setRange(1, 9999);
-    intervalSpinBox.setValue(1);
 
-    layout.addRow(tr("IP地址:"), &ipEdit);
-    layout.addRow(tr("时间间隔:"), &intervalSpinBox);
+    QLineEdit ipEdit;
+    layout.addRow("IP地址:", &ipEdit);
 
     QDialogButtonBox buttonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     layout.addWidget(&buttonBox);
 
-    QObject::connect(&buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
-    QObject::connect(&buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    connect(&buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(&buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
 
     if (dialog.exec() != QDialog::Accepted)
         return QJsonObject();
 
-    QJsonObject newConfig;
-    newConfig.insert("IP", ipEdit.text());
-    newConfig.insert("TimerInterval", intervalSpinBox.value());
-    return newConfig;
+    QString ip = ipEdit.text().trimmed();
+
+    if(ip.isEmpty())
+        return QJsonObject();
+
+    QJsonObject obj;
+    obj.insert("IP", ip);
+
+    return obj;
 }
 
 void ConfigDlg::on_btn_Add_clicked()
 {
     QJsonObject newConfig = getNewConfigFromDialog();
-    if(!newConfig.isEmpty())
+    if(newConfig.isEmpty())
+        return;
+
+    QString newIp = newConfig.value("IP").toString();
+
+    // 防止重复
+    for(const QJsonObject& cfg : ipConfigs)
     {
-        ipConfigs.append(newConfig);
-        updateTableWidget();
+        if(cfg.value("IP").toString() == newIp)
+        {
+            QMessageBox::warning(this, "提示", "IP已存在！");
+            return;
+        }
     }
+
+    ipConfigs.append(newConfig);
+    updateTableWidget();
 }
 
 
 void ConfigDlg::on_btn_Modify_clicked()
 {
+    m_isEditing = !m_isEditing;
+
+    setTableEditable(m_isEditing);
 
 }
 
 
 void ConfigDlg::on_btn_Delete_clicked()
 {
+    int row = ui->tableWidget->currentRow();
 
+    if(row < 0)
+    {
+        QMessageBox::warning(this, "提示", "请先选中一行");
+        return;
+    }
+
+    //删数据
+    if(row < ipConfigs.size())
+    {
+        ipConfigs.removeAt(row);
+    }
+
+    //删UI
+    ui->tableWidget->removeRow(row);
 }
 
 
 void ConfigDlg::on_btn_Save_clicked()
 {
-    saveConfigToJson();
+    syncTableToData();   // UI → 数据
+    saveConfigToJson();  // 数据 → JSON
+    //QMessageBox::information(this, "提示", "保存成功");
+    m_isEditing = false;
+    setTableEditable(false);
+    emit configChanged();   // 通知主窗口
+    this->accept();
+
 }
+
+void ConfigDlg::on_btn_Cancel_clicked()
+{
+    this->accept();
+}
+
+
+void ConfigDlg::readTableToConfigs()
+{
+    ipConfigs.clear();   // 清空旧数据
+
+    int rowCount = ui->tableWidget->rowCount();
+
+    for(int i = 0; i < rowCount; ++i)
+    {
+        QTableWidgetItem* item = ui->tableWidget->item(i, 0);
+        if(!item) continue;
+
+        QString ip = item->text().trimmed();
+        if(ip.isEmpty()) continue;
+
+        QJsonObject obj;
+        obj.insert("IP", ip);
+
+        ipConfigs.append(obj);
+    }
+}
+
+void ConfigDlg::syncTableToData()
+{
+    ipConfigs.clear();
+
+    int rowCount = ui->tableWidget->rowCount();
+
+    for(int i = 0; i < rowCount; ++i)
+    {
+        QTableWidgetItem* item = ui->tableWidget->item(i, 0);
+        if(!item) continue;
+
+        QString ip = item->text().trimmed();
+        if(ip.isEmpty()) continue;
+
+        QJsonObject obj;
+        obj.insert("IP", ip);
+
+        ipConfigs.append(obj);
+    }
+}
+
+void ConfigDlg::setTableEditable(bool editable)
+{
+    if(editable)
+    {
+        ui->tableWidget->setEditTriggers(
+            QAbstractItemView::DoubleClicked |
+            QAbstractItemView::SelectedClicked);
+
+        // 编辑模式：白底 + 蓝色选中
+        ui->tableWidget->setStyleSheet(
+            "QTableWidget {"
+            " background-color: white;"
+            " color: black;"
+            "}"
+            "QTableWidget::item:selected {"
+            " background-color: rgb(0,120,215);"
+            " color: white;"
+            "}"
+            );
+    }
+    else
+    {
+        ui->tableWidget->setEditTriggers(QAbstractItemView::NoEditTriggers);
+
+        // 非编辑模式：灰底 + 灰色选中
+        ui->tableWidget->setStyleSheet(
+            "QTableWidget {"
+            " background-color: rgb(240,240,240);"
+            " color: black;"
+            "}"
+            "QTableWidget::item:selected {"
+            " background-color: rgb(200,200,200);"
+            " color: black;"
+            "}"
+            );
+    }
+}
+
 
