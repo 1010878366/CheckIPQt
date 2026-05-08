@@ -6,6 +6,7 @@
 #include <QString>
 #include <QThread>
 #include <QSystemTrayIcon>
+#include <Qtconcurrent>
 #include "configdlg.h"
 #include "global.h"
 
@@ -57,5 +58,8 @@ public:
     QString m_ip;          //当前监测IP
     QStringList m_ipList;   //监测IP列表
     int m_interval = 1;    //监测时间间隔/秒
+
+private:
+    void checkIpWorker(QString ip);
 };
 #endif // MAINWINDOW_H

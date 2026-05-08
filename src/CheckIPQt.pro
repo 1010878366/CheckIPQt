@@ -1,5 +1,6 @@
 QT       += core gui
 QT += network
+QT += concurrent
 LIBS += -liphlpapi
 win32:LIBS += -lws2_32 -liphlpapi
 msvc {

@@ -348,6 +348,7 @@ void ConfigDlg::syncTableToData()
     }
 }
 
+/*
 void ConfigDlg::setTableEditable(bool editable)
 {
     if(editable)
@@ -385,5 +386,44 @@ void ConfigDlg::setTableEditable(bool editable)
             );
     }
 }
+*/
 
+void ConfigDlg::setTableEditable(bool editable)
+{
+    if(editable)
+    {
+        ui->tableWidget->setEditTriggers(
+            QAbstractItemView::DoubleClicked);
+    }
+    else
+    {
+        ui->tableWidget->setEditTriggers(
+            QAbstractItemView::NoEditTriggers);
+    }
 
+    refreshTableColor(editable);
+}
+
+void ConfigDlg::refreshTableColor(bool editable)
+{
+    QColor bgColor;
+
+    if(editable)
+        bgColor = Qt::white;
+    else
+        bgColor = QColor(240,240,240);
+
+    for(int row = 0; row < ui->tableWidget->rowCount(); ++row)
+    {
+        for(int col = 0; col < ui->tableWidget->columnCount(); ++col)
+        {
+            QTableWidgetItem* item =
+                ui->tableWidget->item(row, col);
+
+            if(item)
+            {
+                item->setBackground(bgColor);
+            }
+        }
+    }
+}

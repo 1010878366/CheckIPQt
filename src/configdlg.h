@@ -25,7 +25,8 @@ public:
     void updateTableWidget();   //更新控件
     void readTableToConfigs();  //从表格读取数据到ipConfigs
     void syncTableToData();     //把界面(tableWidget)上的内容，同步回数据(ipConfigs)
-    void setTableEditable(bool editable);   //
+    void setTableEditable(bool editable);   //编辑
+    void refreshTableColor(bool editable);  //刷新颜色
 
 private slots:
     void on_btnOK_clicked();

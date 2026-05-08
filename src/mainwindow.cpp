@@ -29,7 +29,7 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    this->setWindowTitle(QString::fromUtf8("IP连接监测 V2.0.3.0"));
+    this->setWindowTitle(QString::fromUtf8("IP连接监测 V2.0.4.0"));
 
     QDir().mkpath(CONFIG_DIR);      //创建配置目录
     QDir().mkpath(LOG_DIR);         //创建日志目录
@@ -64,14 +64,21 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+// void MainWindow::onTimeout()
+// {
+//     // 遍历 IP 列表里的每一个IP
+//     for (const QString &ip : m_ipList) {
+//         bool ok = checkIP(ip);
+//         QString msg = ok ? "连通" : "ERR，连接失败！";
+
+//         addOneMsg(ip + " " + msg);
+//     }
+// }
 void MainWindow::onTimeout()
 {
-    // 遍历 IP 列表里的每一个IP
-    for (const QString &ip : m_ipList) {
-        bool ok = checkIP(ip);
-        QString msg = ok ? "连通" : "ERR，连接失败！";
-
-        addOneMsg(ip + " " + msg);
+    for(const QString& ip : m_ipList)
+    {
+        QtConcurrent::run(&MainWindow::checkIpWorker, this, ip);
     }
 }
 
@@ -260,4 +267,20 @@ void MainWindow::logWithThread(const QString& info)
 {
     QString threadId = QString::number((quintptr)QThread::currentThreadId());
     addOneMsg(QString("[TID:%1] %2").arg(threadId).arg(info));
+}
+
+void MainWindow::checkIpWorker(QString ip)
+{
+    QString threadId = QString::number((quintptr)QThread::currentThreadId());
+
+    bool ok = checkIP(ip);
+
+    QString msg = ok ? "连通" : "ERR，连接失败！";
+
+    // 切回UI线程
+    QMetaObject::invokeMethod(this,[=]()
+                              {
+                                addOneMsg(QString("[TID:%1] %2 %3").arg(threadId).arg(ip).arg(msg));
+                              },
+                              Qt::QueuedConnection);
 }

@@ -1,8 +1,10 @@
 {
-    "TimerSetting": {
+    "global": {
         "TimerInterval": 1
     },
-    "config": {
-        "IP": "192.168.1.2"
-    }
+    "ipList": [
+        {
+            "IP": "2.2.2.2"
+        }
+    ]
 }
