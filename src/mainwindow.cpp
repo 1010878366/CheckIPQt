@@ -1,15 +1,16 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#define _WINSOCKAPI_   // 防止 Windows.h 引入旧版 winsock.h
+// #ifdef _WIN32
+// #define WIN32_LEAN_AND_MEAN
+// #define _WINSOCKAPI_   // 防止 Windows.h 引入旧版 winsock.h
 
-#include <Windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include <iphlpapi.h>
-#include <icmpapi.h>
+//#include <Windows.h>
+//#include <winsock2.h>
+//#include <ws2tcpip.h>
+//#include <iphlpapi.h>
+//#include <icmpapi.h>
+#include <QProcess>
 #include <QFile>
 #include <QDir>
 #include <QTextStream>
@@ -18,18 +19,13 @@
 #include <QAction>
 #include <QCloseEvent>
 #include <QtDebug>
-//#include <QTextCodec>
-//#pragma execution_character_set("utf-8")
-
-#pragma comment(lib, "iphlpapi.lib")
-#endif
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    this->setWindowTitle(QString::fromUtf8("IP连接监测 V2.0.4.0"));
+    this->setWindowTitle(QString::fromUtf8("IP连接监测 V2.0.5.0"));
 
     QDir().mkpath(CONFIG_DIR);      //创建配置目录
     QDir().mkpath(LOG_DIR);         //创建日志目录
@@ -49,7 +45,6 @@ MainWindow::MainWindow(QWidget *parent)
     connect(restoreAction, &QAction::triggered, this, &MainWindow::onRestore);
     connect(quitAction, &QAction::triggered, this, &MainWindow::onQuit);
     connect(trayIcon, &QSystemTrayIcon::activated, this, &MainWindow::onTrayIconActivated);
-    //connect(m_pConfigDlg, &ConfigDlg::configChanged,this, &MainWindow::reloadConfig);
 
     trayIcon->setContextMenu(trayMenu);
     trayIcon->show();
@@ -64,16 +59,6 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-// void MainWindow::onTimeout()
-// {
-//     // 遍历 IP 列表里的每一个IP
-//     for (const QString &ip : m_ipList) {
-//         bool ok = checkIP(ip);
-//         QString msg = ok ? "连通" : "ERR，连接失败！";
-
-//         addOneMsg(ip + " " + msg);
-//     }
-// }
 void MainWindow::onTimeout()
 {
     for(const QString& ip : m_ipList)
@@ -84,37 +69,40 @@ void MainWindow::onTimeout()
 
 bool MainWindow::checkIP(const QString& ip)
 {
-#ifdef _WIN32
-    HANDLE hIcmpFile = IcmpCreateFile();
-    if (hIcmpFile == INVALID_HANDLE_VALUE)
-        return false;
+#ifdef Q_OS_WIN
 
-    sockaddr_in sa{};
-    if (InetPton(AF_INET, ip.toStdWString().c_str(), &sa.sin_addr.s_addr) != 1)
+    QString program = "ping";
+    QStringList arguments;
+
+    arguments << "-n" << "1"
+              << "-w" << "500"
+              << ip;
+
+#else
+
+    QString program = "ping";
+    QStringList arguments;
+
+    arguments << "-c" << "1"
+              << "-W" << "1"
+              << ip;
+
+#endif
+
+    QProcess process;
+
+    process.start(program, arguments);
+
+    process.start(program, arguments);
+
+    if(!process.waitForFinished(2000))
     {
-        IcmpCloseHandle(hIcmpFile);
+        process.kill();
+        process.waitForFinished();
         return false;
     }
 
-    DWORD replySize = sizeof(ICMP_ECHO_REPLY) + 8;
-    std::vector<char> buffer(replySize);
-
-    DWORD ret = IcmpSendEcho(
-        hIcmpFile,
-        sa.sin_addr.s_addr,
-        nullptr,
-        0,
-        nullptr,
-        buffer.data(),
-        replySize,
-        500);
-
-    IcmpCloseHandle(hIcmpFile);
-
-    return ret != 0;
-#else
-    return false;
-#endif
+    return process.exitCode() == 0;
 }
 
 //日志+显示
@@ -123,19 +111,20 @@ void MainWindow::addOneMsg(const QString& info)
     QString timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
     QString fullInfo = timestamp + "   " + info;
 
-    // 更新ListWidget
+    //更新ListWidget
     ui->listWidget->addItem(fullInfo);
     ui->listWidget->setCurrentRow(ui->listWidget->count() - 1);
 
-    // 按月/日写日志
+    //按月/日写日志
     QString month = QDateTime::currentDateTime().toString("yyyy-MM");
     QString day = QDateTime::currentDateTime().toString("dd");
     addOneLog(month, day, fullInfo);
 }
 
-// 写日志到文件
+//写日志到文件
 void MainWindow::addOneLog(const QString& month, const QString& day, const QString& info)
 {
+    /*//先不写日志
     QString basePath = QString(LOG_DIR) + month + "/";
     makeDirectory(basePath);
 
@@ -148,15 +137,16 @@ void MainWindow::addOneLog(const QString& month, const QString& day, const QStri
         out << info << "\r\n";
         file.close();
     }
+    */
 }
 
-// 创建多级目录
+//创建多级目录
 bool MainWindow::makeDirectory(const QString& path)
 {
     QDir dir;
     if (!dir.exists(path))
     {
-        return dir.mkpath(path); // 自动创建多级目录
+        return dir.mkpath(path);    //自动创建多级目录
     }
     return true;
 }
@@ -244,7 +234,7 @@ void MainWindow::loadConfig()
         m_ipList << DEFAULT_IP;
 
     // 时间写死
-    m_interval = 1;
+    m_interval = 2;
 }
 
 void MainWindow::reloadConfig()

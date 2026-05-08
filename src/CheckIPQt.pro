@@ -1,8 +1,8 @@
 QT       += core gui
 QT += network
 QT += concurrent
-LIBS += -liphlpapi
-win32:LIBS += -lws2_32 -liphlpapi
+# LIBS += -liphlpapi
+# win32:LIBS += -lws2_32 -liphlpapi
 msvc {
     QMAKE_CFLAGS += /utf-8
     QMAKE_CXXFLAGS += /utf-8

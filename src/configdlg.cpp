@@ -7,6 +7,7 @@
 #include <QMessageBox>
 #include <QFormLayout>
 #include <QDialogButtonBox>
+#include <QHeaderView>
 
 ConfigDlg::ConfigDlg(QWidget *parent) :
     QDialog(parent),
@@ -14,7 +15,7 @@ ConfigDlg::ConfigDlg(QWidget *parent) :
 {
     ui->setupUi(this);
 
-    m_strIniPath = INI_PATH;
+    //m_strIniPath = INI_PATH;
     m_strJsonPath = JSON_PATH;
     QDir().mkpath(CONFIG_DIR);  //如果不存在，创建配置目录
     //ui->lineEditTime->setValidator(new QIntValidator(1, 9999, this));   //时间间隔输入框只接受1-9999整数
@@ -172,6 +173,7 @@ void ConfigDlg::updateTableWidget()
 
         ui->tableWidget->setItem(i, 0, new QTableWidgetItem(ip));
     }
+    ui->tableWidget->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
 }
 
 void ConfigDlg::saveConfigToJson()
@@ -305,28 +307,6 @@ void ConfigDlg::on_btn_Cancel_clicked()
     this->accept();
 }
 
-
-void ConfigDlg::readTableToConfigs()
-{
-    ipConfigs.clear();   // 清空旧数据
-
-    int rowCount = ui->tableWidget->rowCount();
-
-    for(int i = 0; i < rowCount; ++i)
-    {
-        QTableWidgetItem* item = ui->tableWidget->item(i, 0);
-        if(!item) continue;
-
-        QString ip = item->text().trimmed();
-        if(ip.isEmpty()) continue;
-
-        QJsonObject obj;
-        obj.insert("IP", ip);
-
-        ipConfigs.append(obj);
-    }
-}
-
 void ConfigDlg::syncTableToData()
 {
     ipConfigs.clear();
@@ -347,46 +327,6 @@ void ConfigDlg::syncTableToData()
         ipConfigs.append(obj);
     }
 }
-
-/*
-void ConfigDlg::setTableEditable(bool editable)
-{
-    if(editable)
-    {
-        ui->tableWidget->setEditTriggers(
-            QAbstractItemView::DoubleClicked |
-            QAbstractItemView::SelectedClicked);
-
-        // 编辑模式：白底 + 蓝色选中
-        ui->tableWidget->setStyleSheet(
-            "QTableWidget {"
-            " background-color: white;"
-            " color: black;"
-            "}"
-            "QTableWidget::item:selected {"
-            " background-color: rgb(0,120,215);"
-            " color: white;"
-            "}"
-            );
-    }
-    else
-    {
-        ui->tableWidget->setEditTriggers(QAbstractItemView::NoEditTriggers);
-
-        // 非编辑模式：灰底 + 灰色选中
-        ui->tableWidget->setStyleSheet(
-            "QTableWidget {"
-            " background-color: rgb(240,240,240);"
-            " color: black;"
-            "}"
-            "QTableWidget::item:selected {"
-            " background-color: rgb(200,200,200);"
-            " color: black;"
-            "}"
-            );
-    }
-}
-*/
 
 void ConfigDlg::setTableEditable(bool editable)
 {

@@ -6,7 +6,7 @@
 #include <QString>
 #include <QThread>
 #include <QSystemTrayIcon>
-#include <Qtconcurrent>
+#include <QtConcurrent>
 #include "configdlg.h"
 #include "global.h"
 
