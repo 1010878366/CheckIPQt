@@ -1,15 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
-// #ifdef _WIN32
-// #define WIN32_LEAN_AND_MEAN
-// #define _WINSOCKAPI_   // 防止 Windows.h 引入旧版 winsock.h
-
-//#include <Windows.h>
-//#include <winsock2.h>
-//#include <ws2tcpip.h>
-//#include <iphlpapi.h>
-//#include <icmpapi.h>
 #include <QProcess>
 #include <QFile>
 #include <QDir>
@@ -25,7 +16,7 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    this->setWindowTitle(QString::fromUtf8("IP连接监测 V2.0.5.0"));
+    this->setWindowTitle(QString::fromUtf8("IP连接监测 V2.0.5.1"));
 
     QDir().mkpath(CONFIG_DIR);      //创建配置目录
     QDir().mkpath(LOG_DIR);         //创建日志目录
@@ -61,9 +52,12 @@ MainWindow::~MainWindow()
 
 void MainWindow::onTimeout()
 {
-    for(const QString& ip : m_ipList)
+    for (const QString& ip : m_ipList)
     {
-        QtConcurrent::run(&MainWindow::checkIpWorker, this, ip);
+        QtConcurrent::run([this, ip]()
+                          {
+                              checkIpWorker(ip);
+                          });
     }
 }
 

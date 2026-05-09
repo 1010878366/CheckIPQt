@@ -8,6 +8,7 @@
 #include <QFormLayout>
 #include <QDialogButtonBox>
 #include <QHeaderView>
+#include <QDebug>
 
 ConfigDlg::ConfigDlg(QWidget *parent) :
     QDialog(parent),
